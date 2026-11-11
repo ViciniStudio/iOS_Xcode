@@ -1,0 +1,47 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decompresser la bibliotheque
+        run: |
+          unzip -o Libraries/libiPhone-lib.zip -d Libraries
+          ls -lh Libraries/libiPhone-lib.a
+
+      - name: Rendre les scripts executables
+        run: chmod +x MapFileParser || true
+
+      - name: Compiler sans signature
+        run: |
+          xcodebuild \
+            -project Unity-iPhone.xcodeproj \
+            -scheme Unity-iPhone \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Creer l'ipa
+        run: |
+          APP=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -n 1)
+          echo "App trouvee : $APP"
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -r JeSaisPas.ipa Payload
+
+      - name: Publier l'ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: JeSaisPas-ipa
+          path: JeSaisPas.ipa
